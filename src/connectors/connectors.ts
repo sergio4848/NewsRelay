@@ -71,7 +71,14 @@ export async function request(
   url: string,
   secret?: string,
 ): Promise<{ text: string; remaining?: number; resetAt?: number }> {
-  if (!safeUrl(url)) throw new Error('Invalid endpoint');
+  const validationUrl = new URL(url);
+  // X continuation cursors are provider pagination state, not credentials.
+  if (
+    validationUrl.hostname === 'api.x.com' &&
+    validationUrl.pathname === '/2/tweets/search/recent'
+  )
+    validationUrl.searchParams.delete('next_token');
+  if (!safeUrl(validationUrl.href)) throw new Error('Invalid endpoint');
   const response = await fetch(url, {
     headers: secret ? { Authorization: 'Bearer ' + secret } : {},
     signal: AbortSignal.timeout(15000),
