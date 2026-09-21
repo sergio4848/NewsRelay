@@ -1,0 +1,7 @@
+# Licensing privacy — technical notes, not legal terms
+
+LexActivator communicates with Cryptlex over HTTPS for activation, trial start, synchronization and deactivation. Its device fingerprinting, license/product identifiers and activation data are used to bind and verify a workstation; the remote service sees connection IP information. The SDK may process hardware/OS identifiers and virtual-machine signals as part of that fingerprint. NewsRelay does not collect a custom fingerprint, log it or expose it to the renderer. See [SDK behavior](https://cryptlex.com/docs/sdks-and-apis/lexactivator) and [Cryptlex privacy policy](https://cryptlex.com/privacy-policy).
+
+NewsRelay sends no source feeds, headlines, rundown, graphics or source credentials to the licensing provider. It does not request email/company for evaluation. Existing provisioned organization metadata need not be displayed or exported. The SDK stores its signed activation data encrypted in its OS-user store; NewsRelay stores no additional license key. Configuration and diagnostics exports contain no license key, device fingerprint, activation ID or raw SDK error.
+
+Product owners must review Cryptlex's current privacy documentation, processing agreements, region/retention configuration and applicable notice requirements before distribution. This document is engineering guidance, not an invented privacy policy, EULA or legal opinion. Product legal/contact links remain unconfigured until the owner supplies authoritative URLs.

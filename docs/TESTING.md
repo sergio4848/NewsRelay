@@ -1,5 +1,9 @@
 # Verification contract
 
+## 5.1 licensing acceptance (pending implementation verification)
+
+Deterministic tests must exercise explicit trial start/expiry, paid activation, activation limits, deactivation, suspension/revocation, offline grace and fresh offline denial, entitlement guards, cached-state tampering, data preservation and actual HTTP Program continuity. Production Electron/package smoke must prove fail-closed missing configuration and absence of a mock bypass. Development test builds remain separate. Real Cryptlex policy/device/activation tests require owner configuration and cannot be inferred from mocks. Record final results after running the checks.
+
 ## Local evidence — 21 September 2026
 
 Windows x64, Node 24.4.1, Electron 44.4.3. Strict type checking, ESLint and Prettier pass. Vitest: **37 tests pass across three files**, including X pagination/lazy media with HTTP fixtures, canonical REST and RSS/Atom, response limits, all editorial modes, permission revocation, hold/next/clear/reorder, blacklist, duplicate provenance, priority bounds, schema validation, legacy migration, redaction, real SQLite migration/rollback/reopen and real authenticated loopback HTTP requests.
