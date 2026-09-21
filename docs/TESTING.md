@@ -14,6 +14,8 @@ External gates still open: live paid X account, customer-specific API endpoints,
 
 The first hosted Windows CI run failed formatting because checkout converted text to CRLF. `.gitattributes` now enforces LF at checkout, preserving the formatter contract across Windows machines.
 
+The next hosted run passed installation, security scan, formatting, typecheck, lint, all 37 tests, build and Electron smoke. Its packaging step created the installer but then failed because electron-builder inferred release publishing from CI and requested GH_TOKEN. Packaging scripts now explicitly use `--publish never`; CI uploads a workflow artifact without attempting a release or requiring a personal token.
+
 Required local checks: npm run format:check, npm run typecheck, npm run lint, npm run test:run, npm run build, npm run dist:win.
 Tests must cover actual reducer transitions (Manual/Assisted/Auto-Air, hold/next/clear/reorder), normalization, blacklist, dedupe provenance, priority, import validation, redaction, SQLite migrations/recovery, legacy transforms and output authorization.
 Electron smoke must launch the real built app, exercise offline Preview → Program, HOLD/CLEAR and isolated demo restart. Output tests must verify unauthorized requests, scoped projection and safe content rendering.

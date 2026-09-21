@@ -15,8 +15,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:smoke": "node scripts/smoke.mjs",
-    "package": "npm run build && electron-builder --dir",
-    "dist:win": "npm run build && electron-builder --win nsis",
+    "package": "npm run build && electron-builder --dir --publish never",
+    "dist:win": "npm run build && electron-builder --win nsis --publish never",
     "security:scan": "node scripts/secret-scan.mjs",
     "postinstall": "node node_modules/electron/install.js"
   },
