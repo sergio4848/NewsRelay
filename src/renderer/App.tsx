@@ -8,7 +8,8 @@ export function App() {
   const [s, setS] = useState<Snapshot | null>(null),
     [page, setPage] = useState('control'),
     [message, setMessage] = useState(''),
-    [working, setWorking] = useState(false);
+    [pending, setPending] = useState(0);
+  const working = pending > 0;
   const t = dictionary(s?.config.language || 'en');
   useEffect(() => {
     void window.newsrelay
@@ -21,8 +22,8 @@ export function App() {
     document.documentElement.lang = s?.config.language || 'en';
   }, [s?.config.language]);
   const run = (fn: () => Promise<unknown>) => {
-    if (working) return;
-    setWorking(true);
+    // Source requests must never lock out emergency playout commands.
+    setPending((count) => count + 1);
     setMessage('');
     void fn()
       .then(async () => {
@@ -30,7 +31,7 @@ export function App() {
         setMessage(t.saved);
       })
       .catch(() => setMessage(t.failure))
-      .finally(() => setWorking(false));
+      .finally(() => setPending((count) => count - 1));
   };
   const save = (config: Config) => run(() => window.newsrelay.saveConfig(config));
   if (!s) return <main className="loading">{message || 'NewsRelay'}</main>;
