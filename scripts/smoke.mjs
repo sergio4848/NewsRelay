@@ -56,7 +56,13 @@ try {
       width: 1920,
       height: 1080,
       show: false,
-      webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
+      webPreferences: {
+        sandbox: true,
+        contextIsolation: true,
+        nodeIntegration: false,
+        offscreen: true,
+        backgroundThrottling: false,
+      },
     });
     await outputWindow.loadURL(url);
   }, outputUrl);
@@ -133,5 +139,9 @@ try {
     'Electron smoke passed: demo, preview/take, hold, navigation, recovery, Turkish UI, clear, vault encryption, output refresh, composition and workspace isolation.',
   );
 } finally {
-  await app.close();
+  try {
+    await app.evaluate(({ clipboard }, text) => clipboard.writeText(text), originalClipboard);
+  } finally {
+    await app.close();
+  }
 }
