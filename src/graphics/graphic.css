@@ -1,0 +1,125 @@
+* {
+  box-sizing: border-box;
+}
+.graphic-canvas {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  color: #fff;
+  container-type: inline-size;
+}
+.graphic {
+  position: absolute;
+  left: 4.167%;
+  right: 4.167%;
+  bottom: 7.4%;
+  background: var(--graphic-primary, #1b2025);
+  border-left: 6px solid var(--graphic-accent, #bf303a);
+  font-size: calc(1.7cqw * var(--graphic-scale, 1));
+  overflow: hidden;
+}
+.graphic-label {
+  height: 3.1cqw;
+  display: flex;
+  align-items: center;
+  gap: 1cqw;
+  background: var(--graphic-accent, #bf303a);
+  padding: 0 1.4cqw;
+  font-size: 1cqw;
+  letter-spacing: 0.07em;
+  font-weight: 600;
+}
+.graphic-label span {
+  margin-left: auto;
+}
+.graphic-logo {
+  height: 2cqw;
+  max-width: 8cqw;
+  object-fit: contain;
+}
+.graphic-content {
+  display: flex;
+  align-items: stretch;
+  min-height: 8cqw;
+}
+.graphic-copy {
+  padding: 1.3cqw 1.8cqw;
+  min-width: 0;
+  flex: 1;
+}
+.graphic h1 {
+  font-size: inherit;
+  font-weight: 600;
+  line-height: 1.24;
+  margin: 0;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.graphic-source {
+  font-size: 0.8cqw;
+  margin-top: 1cqw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #c5cdd3;
+}
+.graphic p {
+  font-size: 1.25cqw;
+  max-height: 8cqw;
+  overflow: hidden;
+}
+.graphic-media {
+  width: 25cqw;
+  height: 16cqw;
+  flex-shrink: 0;
+  background: #101316;
+}
+.media .graphic-content {
+  min-height: 16cqw;
+}
+.graphic-media img,
+.graphic-media video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.ticker {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-left: 0;
+}
+.ticker .graphic-label {
+  height: 2.4cqw;
+}
+.ticker .graphic-content {
+  min-height: 0;
+}
+.ticker .graphic-source {
+  display: none;
+}
+.ticker h1 {
+  -webkit-line-clamp: 1;
+}
+.ticker .graphic-copy {
+  padding: 0.8cqw 2cqw;
+}
+.quote {
+  right: 20%;
+}
+.breaking .graphic-label {
+  background: #b52d36;
+}
+.test-slate {
+  position: absolute;
+  top: 10%;
+  left: 10%;
+  font-size: 3cqw;
+  border: 2px solid white;
+  padding: 2cqw;
+}
