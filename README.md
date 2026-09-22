@@ -2,15 +2,15 @@
 
 Broadcast News Automation by S-AI Media Works.
 
-NewsRelay 5.0.0 is a local-first Windows desktop newsroom for ingesting sources, preparing an editorial rundown and playing broadcast graphics through an authenticated OBS Browser Source. The repository is public; no application license has been selected by the owner. Public source availability is not an open-source license.
+NewsRelay 5.1.0 is a local-first Windows desktop newsroom for ingesting sources, preparing an editorial rundown and playing broadcast graphics through an authenticated OBS Browser Source. Operational use requires a verified evaluation or paid license. Public source availability is not an open-source license; no source-code license has been selected by the owner.
 
-Canonical repository: https://github.com/sergio4848/NewsRelay. Development branch: `feat/newsrelay-v5-productization`.
+Canonical repository: https://github.com/sergio4848/NewsRelay. Development branch: `feat/newsrelay-v5-licensing`.
 
 ## Operator workflow
 
 Incoming → Preview → TAKE → Program. Manual operation is the default. Assisted mode queues Official/Trusted sources. Auto-Air also requires explicit source permission and minimum priority. HOLD freezes Program while ingestion continues. CLEAR blanks Program and returns to Manual. Restart recovers Incoming/rundown but deliberately leaves output blank.
 
-Choose Demo mode for an offline rehearsal in a separate database. Settings provides OBS connection copying and a separate test-output URL. Customers use the Windows installer; Node.js, npm and terminal commands are development requirements only.
+Start a verified trial or activate a provisioned license in Settings → License. Demo mode provides offline rehearsal content in a separate database, and still requires valid access. Settings provides OBS connection copying and a separate test-output URL. Customers use the Windows installer; Node.js, npm and terminal commands are development requirements only. Expiration locks new operations but preserves an already on-air Program until CLEAR or exit.
 
 ## Development
 
@@ -35,7 +35,11 @@ The explicit postinstall downloads the pinned Electron runtime. `dev` builds and
 | `npm run dist:win`      | NSIS installer                                  |
 | `npm run security:scan` | Tracked-content secret and path checks          |
 
-Run `build` before smoke. The unsigned installer is emitted under `release/NewsRelay-Setup-5.0.0.exe`. Generated binaries, data and dependencies are ignored and do not enter source history. Signing and automatic updates are not configured.
+`test:smoke` builds both production and isolated development test bundles. The unsigned installer is emitted under `release/NewsRelay-Setup-5.1.0.exe`. Generated binaries, data and dependencies are ignored and do not enter source history. Signing and automatic updates are not configured.
+
+The public build intentionally has no product configuration and denies operational use. For production, copy `config/licensing.example.json` to ignored `config/licensing.local.json`, supply the distributable Product ID/Product.dat and authoritative contact URLs, then build. No admin API token or paid license key belongs in this file. See [licensing operations](docs/LICENSING_OPERATIONS.md). Live provider acceptance still requires valid owner configuration.
+
+For explicit mock UI development run `npm run build:test`, then `npx electron dist-test/main/main.cjs`. Start the trial yourself; test builds are conspicuously marked and packaging rejects them. Only fixtures accept `fixture-professional` or `fixture-enterprise`. These values never grant access in production. Environment variables cannot select the production license provider.
 
 ## Architecture
 
@@ -46,6 +50,7 @@ Run `build` before smoke. The unsigned installer is emitted under `release/NewsR
 - `src/renderer`: React control room and English/Turkish operator UI.
 - `src/graphics`: Headline, Breaking, Quote, Media and Ticker.
 - `src/output`: independent loopback output, scoped capability authorization, bounded reconnect.
+- `src/licensing`: provider-neutral states, entitlement service, native Cryptlex adapter and isolated worker. Test providers live outside production source.
 
 The core does not consume X response objects. New integrations implement SourceConnector. REST/webhook require the documented canonical data shape; arbitrary proprietary APIs are not claimed.
 

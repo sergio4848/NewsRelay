@@ -1,6 +1,16 @@
 # Release review
 
-This is an implemented and locally verified 5.0.0 commercial foundation, not a certified broadcast deployment.
+This is an implemented and locally verified 5.1.0 licensing integration on the 5.0 foundation, not a certified broadcast deployment. Live provider provisioning and production acceptance remain external gates.
+
+## Licensing adversarial review
+
+Security: renderer supplies only a validated activation request or fixed contact ID. Worker is the only native SDK caller. No local license cache is authoritative, no test provider is imported into production, no runtime environment can grant access, and the packaged native SDK was executed. Management credentials, device fingerprints, raw provider errors and license keys never enter snapshots or diagnostics. The SDK owns encrypted activation storage. Public configuration is build-time, schema constrained and missing configuration denies access. Same-user code/process tampering remains outside the trust boundary; signing is still required for distribution.
+
+Broadcast operations: license callbacks only disarm automation and notify; they never advance or clear Program. TAKE consults in-memory entitlements without network waits. HTTP output stays alive across invalid states. Existing Program keeps its theme; lost branding permission cannot authorize another custom TAKE. Imports validate permissions before any deliberate CLEAR. A failed license observer cannot become an unhandled rejection. Existing graphics may remain visible indefinitely, but no new playout/ingestion is permitted without entitlement.
+
+Commercial licensing: a trial requires the provider and an explicit action, never installation date or local preferences. Two Professional slots represent production/standby policy, not role enforcement. Enterprise is externally provisioned; absent features deny. Finite provider grace is required and bounded by signed expiry. Revocation cannot be discovered instantly while disconnected. No payment automation, customer portal, floating lease lifecycle or future enterprise capability is falsely claimed.
+
+Enterprise IT/customer: configuration/history/credentials survive license transitions and schema remains version 1. Activation details, errors, license management, export and diagnostics stay reachable; all new UI strings have EN/TR equivalents. Public engineering builds display their missing product configuration rather than granting a mock trial. Actual policy setup, live workstation acceptance, clean installation and signing must precede customer distribution. See TESTING.md for evidence and exclusions.
 
 ## Operator review
 
