@@ -1,6 +1,6 @@
 {
   "name": "newsrelay",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "private": true,
   "description": "Broadcast News Automation",
   "author": "S-AI Media Works",
@@ -14,13 +14,15 @@
     "format:check": "prettier --check src tests scripts *.json *.ts *.mjs *.html docs AGENTS.md README.md",
     "test": "vitest",
     "test:run": "vitest run",
-    "test:smoke": "node scripts/smoke.mjs",
+    "test:smoke": "npm run build:test && node scripts/smoke.mjs && node scripts/license-smoke.mjs",
     "package": "npm run build && electron-builder --dir --publish never",
     "dist:win": "npm run build && electron-builder --win nsis --publish never",
     "security:scan": "node scripts/secret-scan.mjs",
-    "postinstall": "node node_modules/electron/install.js"
+    "postinstall": "node node_modules/electron/install.js",
+    "build:test": "npm run build && node scripts/build.mjs --test"
   },
   "dependencies": {
+    "@cryptlex/lexactivator": "3.45.0",
     "fast-xml-parser": "^5.2.5",
     "react": "19.3.0",
     "react-dom": "19.3.0",
@@ -28,10 +30,10 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
+    "@playwright/test": "^1.55.0",
     "@types/node": "^24.3.0",
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
-    "@playwright/test": "^1.55.0",
     "electron": "44.4.3",
     "electron-builder": "26.15.3",
     "esbuild": "^0.28.2",
@@ -72,7 +74,11 @@
       "artifactName": "NewsRelay-Setup-${version}.exe",
       "deleteAppDataOnUninstall": false
     },
-    "copyright": " "
+    "copyright": " ",
+    "beforePack": "./scripts/package-guard.cjs",
+    "asarUnpack": [
+      "node_modules/@cryptlex/lexactivator/**/*"
+    ]
   },
   "type": "module"
 }

@@ -1,3 +1,5 @@
+import { licenseDictionary } from './license-i18n';
+import { statuses } from '../licensing/model';
 export const en = {
   compose: 'New story',
   publisher: 'Publisher',
@@ -253,6 +255,10 @@ export const tr: Record<keyof typeof en, string> = {
 export type Strings = typeof en;
 export const dictionary = (language: 'en' | 'tr'): Strings => (language === 'tr' ? tr : en);
 export function eventLabel(event: string, language: 'en' | 'tr') {
+  const status = statuses.find((status) => event === 'license-' + status);
+  if (status) return licenseDictionary(language).title + ': ' + licenseDictionary(language)[status];
+  if (event === 'license-disarmed')
+    return language === 'tr' ? 'Lisans: otomatik yayın durduruldu' : 'License: Auto-Air disarmed';
   const labels: Record<string, string> = {
     recovered: 'Oturum kurtarıldı',
     configuration: 'Ayarlar değiştirildi',

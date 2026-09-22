@@ -1,5 +1,7 @@
 import { type Repository } from '../persistence/database';
 import { type Vault } from './vault';
+import { LicenseService } from '../licensing/service';
+import type { Contacts, Feature } from '../licensing/model';
 import {
   connector,
   DemoConnector,
@@ -11,6 +13,7 @@ import {
 import { advance, ingest, reduce } from '../core/editorial';
 import {
   configSchema,
+  defaultConfig,
   emptyState,
   sourceSchema,
   type Config,
@@ -32,8 +35,10 @@ export class Newsroom {
   changed: () => void = () => {};
   constructor(
     readonly repo: Repository,
-    readonly vault: Vault,
+    readonly vault: Pick<Vault, 'get' | 'put' | 'token'>,
     readonly demo: boolean,
+    readonly license: LicenseService,
+    readonly contacts: Contacts,
   ) {
     this.config = repo.config();
     if (demo && !this.config.sources.length) this.config.sources = [demoSource()];
@@ -57,6 +62,8 @@ export class Newsroom {
   }
   snapshot(): Snapshot {
     return {
+      license: this.license.snapshot(),
+      contacts: this.contacts,
       state: this.state,
       config: this.config,
       demo: this.demo,
@@ -67,6 +74,14 @@ export class Newsroom {
     };
   }
   command(c: Command) {
+    if (c.type !== 'clear' && c.type !== 'hold' && !(c.type === 'mode' && c.mode === 'manual'))
+      this.license.require('output.obs');
+    if (c.type === 'mode' && c.mode === 'auto') this.license.require('workflow.auto_air');
+    if (
+      (c.type === 'take' || c.type === 'next' || (c.type === 'mode' && c.mode === 'auto')) &&
+      this.customTheme()
+    )
+      this.license.require('branding.custom');
     if (c.type === 'compose') {
       const source = sourceSchema.parse({
         id: 'manual-' + crypto.randomUUID(),
@@ -101,10 +116,29 @@ export class Newsroom {
     this.changed();
     return this.snapshot();
   }
-  save(config: Config) {
+  validateConfig(config: Config, replacingProgram = false) {
     const validated = configSchema.parse(config);
+    if (JSON.stringify(validated.theme) !== JSON.stringify(this.config.theme)) {
+      this.license.require('output.obs');
+      if (JSON.stringify(validated.theme) !== JSON.stringify(defaultConfig().theme))
+        this.license.require('branding.custom');
+      // Theme is part of Program's visual projection. Do not mutate an on-air graphic.
+      if (this.state.program && !replacingProgram)
+        throw new Error('Clear Program before changing branding');
+    }
+    if (JSON.stringify(validated.sources) !== JSON.stringify(this.config.sources)) {
+      this.license.require('output.obs');
+      for (const source of validated.sources) {
+        if (source.enabled) this.license.require(this.sourceFeature(source.kind));
+        if (source.autoAir) this.license.require('workflow.auto_air');
+      }
+    }
     if (validated.sources.some((s) => (s.kind === 'demo') !== this.demo))
       throw new Error('Source belongs to another operating mode');
+    return validated;
+  }
+  save(config: Config) {
+    const validated = this.validateConfig(config);
     this.repo.commit(this.state, 'configuration', undefined, () => {
       this.repo.set('config', validated);
       for (const old of this.config.sources) {
@@ -127,6 +161,9 @@ export class Newsroom {
     return this.snapshot();
   }
   accept(id: string, raw: unknown) {
+    this.license.require('connector.webhook');
+    this.license.require('output.obs');
+    this.disarmUnlicensedAuto();
     const c = this.connectors.get(id),
       source = this.config.sources.find((s) => s.id === id);
     if (!c || !source?.enabled || source.kind !== 'webhook') throw new Error('Webhook unavailable');
@@ -142,6 +179,10 @@ export class Newsroom {
     this.changed();
   }
   async poll(force = false) {
+    if (!this.license.allows('output.obs')) {
+      if (force) this.license.require('output.obs');
+      return;
+    }
     if (this.busy) return;
     this.busy = true;
     const generation = this.generation;
@@ -149,6 +190,7 @@ export class Newsroom {
       for (const source of this.config.sources) {
         if (
           !source.enabled ||
+          !this.license.allows(this.sourceFeature(source.kind)) ||
           source.kind === 'webhook' ||
           (!force && (this.due.get(source.id) || 0) > Date.now())
         )
@@ -161,6 +203,12 @@ export class Newsroom {
             this.vault.get('source:' + source.id),
           );
           if (generation !== this.generation) return;
+          if (
+            !this.license.allows('output.obs') ||
+            !this.license.allows(this.sourceFeature(source.kind))
+          )
+            return;
+          this.disarmUnlicensedAuto();
           let state = this.state;
           const events: { event: string; itemId: string }[] = [];
           for (const item of batch.items) {
@@ -201,6 +249,10 @@ export class Newsroom {
     }
   }
   tick() {
+    this.disarmUnlicensedAuto();
+    if (!this.license.allows('output.obs') || !this.license.allows('workflow.auto_air')) {
+      return;
+    }
     if (
       this.state.mode === 'auto' &&
       !this.state.hold &&
@@ -215,6 +267,8 @@ export class Newsroom {
     }
   }
   async media(id: string) {
+    this.license.require('connector.x');
+    this.license.require('output.obs');
     const item = this.state.items.find((i) => i.id === id),
       source = this.config.sources.find((s) => s.id === item?.connectorId);
     if (!item || !source?.media) throw new Error('Media disabled');
@@ -222,6 +276,8 @@ export class Newsroom {
     if (!(c instanceof XConnector)) return this.snapshot();
     const generation = this.generation;
     const loaded = await c.loadMedia(item, this.vault.get('source:' + item.connectorId));
+    this.license.require('connector.x');
+    this.license.require('output.obs');
     if (generation !== this.generation) throw new Error('Source configuration changed');
     const next = structuredClone(this.state);
     next.items = next.items.map((i) => (i.id === id ? loaded : i));
@@ -234,6 +290,7 @@ export class Newsroom {
   }
   async seed() {
     if (!this.demo) return;
+    this.license.require('output.obs');
     const c = new DemoConnector(demoSource());
     let state = emptyState();
     for (const item of (await c.poll()).items) state = ingest(state, item, this.config).state;
@@ -244,5 +301,32 @@ export class Newsroom {
   stop() {
     this.generation++;
     for (const c of this.connectors.values()) c.stop();
+  }
+  private sourceFeature(kind: Config['sources'][number]['kind']): Feature {
+    return kind === 'demo' ? 'output.obs' : `connector.${kind}`;
+  }
+  licenseChanged() {
+    this.disarmUnlicensedAuto();
+    this.changed();
+  }
+  private disarmUnlicensedAuto() {
+    if (
+      this.state.mode === 'auto' &&
+      (!this.license.allows('output.obs') ||
+        !this.license.allows('workflow.auto_air') ||
+        (this.customTheme() && !this.license.allows('branding.custom')))
+    ) {
+      this.state = { ...this.state, mode: 'manual' };
+      this.repo.commit(this.state, 'license-disarmed');
+      this.changed();
+    }
+  }
+  private customTheme() {
+    return JSON.stringify(this.config.theme) !== JSON.stringify(defaultConfig().theme);
+  }
+  outputTheme() {
+    return this.state.program || this.license.allows('branding.custom')
+      ? this.config.theme
+      : defaultConfig().theme;
   }
 }

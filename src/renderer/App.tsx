@@ -4,6 +4,9 @@ import { dictionary } from './i18n';
 import { Control } from './Control';
 import { Sources } from './Sources';
 import { Settings, Templates, History, Diagnostics } from './Panels';
+import { LicensePanel } from './LicensePanel';
+import { licenseDictionary } from './license-i18n';
+import { eligible } from '../licensing/model';
 export function App() {
   const [s, setS] = useState<Snapshot | null>(null),
     [page, setPage] = useState('control'),
@@ -44,12 +47,17 @@ export function App() {
     'diagnostics',
   ] as const;
   const props = { s, t, save, run };
+  const licensed = eligible(s.license);
+  const lt = licenseDictionary(s.config.language);
   return (
     <div className="app">
       <header>
         <strong>{brand.name}</strong>
         <span className="edition">{t.control}</span>
         <span className="spacer" />
+        <button className={licensed ? '' : 'amber'} onClick={() => setPage('settings')}>
+          {lt[s.license.status]}
+        </button>
         <span className={s.state.program ? 'onair' : 'muted'}>
           {s.state.program ? t.onAir : t.offAir}
         </span>
@@ -59,6 +67,7 @@ export function App() {
         </span>
         <button
           className={s.demo ? 'held' : ''}
+          disabled={!licensed || !!s.state.program}
           onClick={() => {
             if (confirm(t.modeConfirm)) run(() => window.newsrelay.demo(!s.demo));
           }}
@@ -94,11 +103,17 @@ export function App() {
           </div>
         </aside>
         <main>
+          {!licensed && page !== 'settings' && (
+            <p className="license-banner amber" role="status">
+              {lt.preserved}
+            </p>
+          )}
+          {!licensed && page === 'control' && !s.state.program && <LicensePanel s={s} />}
           {!s.config.setup && (
             <section className="onboarding">
               <div>
                 <h2>{t.welcome}</h2>
-                <p>{t.welcomeText}</p>
+                <p>{licensed ? t.welcomeText : lt.introduction}</p>
               </div>
               <div className="actions">
                 <select
@@ -109,17 +124,22 @@ export function App() {
                   <option value="en">English</option>
                   <option value="tr">Türkçe</option>
                 </select>
-                <button onClick={() => setPage('sources')}>{t.setupSource}</button>
-                <button onClick={() => setPage('settings')}>{t.setupOutput}</button>
-                <button onClick={() => setPage('templates')}>{t.setupTheme}</button>
-                <button onClick={() => run(() => window.newsrelay.copyOutput(true))}>
-                  {t.setupTest}
-                </button>
-                <button onClick={() => save({ ...s.config, setup: true })}>{t.finish}</button>
+                {!licensed && <button onClick={() => setPage('settings')}>{lt.title}</button>}
+                {licensed && (
+                  <>
+                    <button onClick={() => setPage('sources')}>{t.setupSource}</button>
+                    <button onClick={() => setPage('settings')}>{t.setupOutput}</button>
+                    <button onClick={() => setPage('templates')}>{t.setupTheme}</button>
+                    <button onClick={() => run(() => window.newsrelay.copyOutput(true))}>
+                      {t.setupTest}
+                    </button>
+                    <button onClick={() => save({ ...s.config, setup: true })}>{t.finish}</button>
+                  </>
+                )}
               </div>
             </section>
           )}
-          {page === 'control' && (
+          {page === 'control' && (licensed || s.state.program) && (
             <Control
               snapshot={s}
               t={t}
@@ -127,8 +147,16 @@ export function App() {
               run={run}
             />
           )}
-          {page === 'sources' && <Sources {...props} />}{' '}
-          {page === 'templates' && <Templates {...props} />}{' '}
+          {page === 'sources' && (
+            <fieldset disabled={!licensed}>
+              <Sources {...props} />
+            </fieldset>
+          )}{' '}
+          {page === 'templates' && (
+            <fieldset disabled={!licensed || !!s.state.program}>
+              <Templates {...props} />
+            </fieldset>
+          )}{' '}
           {page === 'history' && <History {...props} />}{' '}
           {page === 'settings' && <Settings {...props} />}{' '}
           {page === 'diagnostics' && <Diagnostics {...props} />}

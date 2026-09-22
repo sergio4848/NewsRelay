@@ -1,9 +1,10 @@
 import { z } from 'zod';
+import type { Contacts, ContactId, LicenseRequest, LicenseState } from '../licensing/model';
 export const brand = {
   name: 'NewsRelay',
   subtitle: 'Broadcast News Automation',
   maker: 'S-AI Media Works',
-  version: '5.0.0',
+  version: '5.1.0',
 } as const;
 export function safeUrl(value: string): boolean {
   try {
@@ -132,6 +133,8 @@ export type Health = {
 };
 export type Audit = { at: string; event: string; itemId?: string };
 export type Snapshot = {
+  license: LicenseState;
+  contacts: Contacts;
   state: State;
   config: Config;
   demo: boolean;
@@ -194,6 +197,8 @@ export const commandSchema = z.discriminatedUnion('type', [
 ]);
 export type Command = z.infer<typeof commandSchema>;
 export interface DesktopBridge {
+  license(request: LicenseRequest): Promise<LicenseState>;
+  contact(id: ContactId): Promise<void>;
   snapshot(): Promise<Snapshot>;
   command(command: Command): Promise<Snapshot>;
   saveConfig(config: Config): Promise<Snapshot>;

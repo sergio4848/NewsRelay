@@ -566,3 +566,43 @@ dd {
     font-size: 10px;
   }
 }
+fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.license-panel {
+  max-width: 940px;
+  padding: 16px;
+  border: 1px solid #343c43;
+  margin-bottom: 16px;
+}
+.license-details {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) 2fr;
+  gap: 6px 18px;
+}
+.license-details dt {
+  color: #9da8b2;
+}
+.license-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.license-panel ul {
+  display: flex;
+  gap: 8px 18px;
+  flex-wrap: wrap;
+  list-style: none;
+  padding: 0;
+}
+.license-panel form {
+  margin-top: 16px;
+  max-width: 480px;
+}
+.license-banner {
+  padding: 8px 16px;
+  margin: 0 0 12px;
+  border-bottom: 1px solid #343c43;
+}

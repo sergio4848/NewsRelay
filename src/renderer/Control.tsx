@@ -3,6 +3,7 @@ import { type Snapshot, type Command, type Item, templateSchema } from '../core/
 import { Graphic } from '../graphics/Graphic';
 import { type Strings } from './i18n';
 import { Compose } from './Compose';
+import { eligible } from '../licensing/model';
 type Props = {
   snapshot: Snapshot;
   t: Strings;
@@ -15,6 +16,7 @@ export function Control({ snapshot: s, t, command, run }: Props) {
     [body, setBody] = useState(''),
     [template, setTemplate] = useState<Item['template']>('headline');
   const p = s.state.preview;
+  const licensed = eligible(s.license) && s.license.features.includes('output.obs');
   useEffect(() => {
     setHeadline(p?.headline || '');
     setBody(p?.body || '');
@@ -23,7 +25,7 @@ export function Control({ snapshot: s, t, command, run }: Props) {
   const edited = p ? { ...p, headline, body, template } : null;
   const take = () =>
     run(async () => {
-      if (!p) return;
+      if (!p || !licensed) return;
       await window.newsrelay.command({ type: 'edit', headline, body, template });
       await window.newsrelay.command({ type: 'take' });
     });
@@ -42,7 +44,7 @@ export function Control({ snapshot: s, t, command, run }: Props) {
         command({ type: 'hold' });
       } else if (event.key.toLowerCase() === 'n') {
         event.preventDefault();
-        command({ type: 'next' });
+        if (licensed) command({ type: 'next' });
       } else if (event.shiftKey && event.key === 'Backspace') {
         event.preventDefault();
         clear();
@@ -63,7 +65,9 @@ export function Control({ snapshot: s, t, command, run }: Props) {
           <h2>{t.incoming}</h2>
           <span>{items.length}</span>
         </div>
-        <Compose t={t} command={command} />
+        <fieldset disabled={!licensed}>
+          <Compose t={t} command={command} />
+        </fieldset>
         <div className="search">
           <input
             aria-label={t.search}
@@ -77,6 +81,7 @@ export function Control({ snapshot: s, t, command, run }: Props) {
             <article className={p?.id === i.id ? 'story selected' : 'story'} key={i.id}>
               <button
                 className="story-select"
+                disabled={!licensed}
                 onClick={() => command({ type: 'preview', id: i.id })}
               >
                 <div className="story-meta">
@@ -91,7 +96,11 @@ export function Control({ snapshot: s, t, command, run }: Props) {
                   <span>{i.references.length > 1 ? '+' + (i.references.length - 1) : ''}</span>
                 </div>
               </button>
-              <button className="quiet" onClick={() => command({ type: 'queue', id: i.id })}>
+              <button
+                disabled={!licensed}
+                className="quiet"
+                onClick={() => command({ type: 'queue', id: i.id })}
+              >
                 {t.queue}
               </button>
             </article>
@@ -120,7 +129,11 @@ export function Control({ snapshot: s, t, command, run }: Props) {
           </section>
         </div>
         <div className="transport">
-          <button className="take" disabled={!p || s.state.hold || !headline.trim()} onClick={take}>
+          <button
+            className="take"
+            disabled={!licensed || !p || s.state.hold || !headline.trim()}
+            onClick={take}
+          >
             {t.take}
           </button>
           <button
@@ -131,7 +144,7 @@ export function Control({ snapshot: s, t, command, run }: Props) {
             {s.state.hold ? t.release : t.hold}
           </button>
           <button
-            disabled={s.state.hold || !s.state.rundown.length}
+            disabled={!licensed || s.state.hold || !s.state.rundown.length}
             onClick={() => command({ type: 'next' })}
           >
             {t.next}
@@ -142,6 +155,7 @@ export function Control({ snapshot: s, t, command, run }: Props) {
           <span className="spacer" />
           <select
             aria-label={t.status}
+            disabled={!licensed}
             value={s.state.mode}
             onChange={(e) => {
               const mode = e.target.value as 'manual' | 'assisted' | 'auto';
@@ -150,7 +164,9 @@ export function Control({ snapshot: s, t, command, run }: Props) {
           >
             <option value="manual">{t.manual}</option>
             <option value="assisted">{t.assisted}</option>
-            <option value="auto">{t.auto}</option>
+            <option disabled={!s.license.features.includes('workflow.auto_air')} value="auto">
+              {t.auto}
+            </option>
           </select>
         </div>
         <div className="preview-editor">

@@ -9,7 +9,7 @@ const launch = () =>
     ...(process.env.NEWSRELAY_EXECUTABLE
       ? { executablePath: process.env.NEWSRELAY_EXECUTABLE }
       : {}),
-    args: ['.'],
+    args: ['dist-test/main/main.cjs'],
     env: { ...process.env, NEWSRELAY_SMOKE: '1', NEWSRELAY_DATA: data },
     timeout: 30000,
   });
@@ -19,6 +19,11 @@ try {
   let page = await app.firstWindow();
   await page.waitForFunction(() => !!window.newsrelay);
   const api = (fn) => page.evaluate(fn);
+  assert.equal((await api(() => window.newsrelay.snapshot())).license.status, 'TRIAL_AVAILABLE');
+  await page.getByRole('button', { name: 'Start 7-Day Trial', exact: true }).click();
+  await page.waitForFunction(
+    async () => (await window.newsrelay.snapshot()).license.status === 'TRIAL_ACTIVE',
+  );
   await api(async () => {
     const s = await window.newsrelay.snapshot();
     await window.newsrelay.saveConfig({ ...s.config, setup: true });
@@ -72,6 +77,26 @@ try {
   await outputPage.reload();
   await outputPage.locator('.graphic h1').waitFor();
   await outputPage.screenshot({ path: resolve('work/broadcast-output.png'), omitBackground: true });
+  // Paid activation and deactivation exercise the real IPC/service/output boundary.
+  await api(() => window.newsrelay.license({ action: 'activate', key: 'fixture-professional' }));
+  await api(() => window.newsrelay.license({ action: 'deactivate' }));
+  const deniedTake = await page.evaluate(async () => {
+    try {
+      await window.newsrelay.command({ type: 'take' });
+      return false;
+    } catch {
+      return true;
+    }
+  });
+  assert.equal(deniedTake, true);
+  assert.equal(
+    (await api(() => window.newsrelay.snapshot())).state.program.headline,
+    state.state.program.headline,
+  );
+  await outputPage.reload();
+  await outputPage.locator('.graphic h1').waitFor();
+  assert.equal(await outputPage.locator('.graphic h1').textContent(), state.state.program.headline);
+  await api(() => window.newsrelay.license({ action: 'activate', key: 'fixture-professional' }));
   await app.evaluate(({ clipboard }, text) => clipboard.writeText(text), originalClipboard);
   await app.close();
   assert.ok(

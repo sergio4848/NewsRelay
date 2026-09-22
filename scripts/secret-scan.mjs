@@ -5,7 +5,7 @@ const files = execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' })
 let failed = false;
 for (const file of files) {
   if (
-    /(^|\/)(\.env(?!\.example)|node_modules|runtime|release|diagnostics)(\/|$)|\.(sqlite|db|zip|dmp|log)$/.test(
+    /(^|\/)(\.env(?!\.example)|node_modules|runtime|release|diagnostics|dist-test)(\/|$)|licensing\.local\.json$|\.(sqlite|db|zip|dmp|log)$/.test(
       file,
     )
   ) {
@@ -16,6 +16,15 @@ for (const file of files) {
     encoding: 'utf8',
     maxBuffer: 20 * 1024 * 1024,
   });
+  const assignments = content.matchAll(
+    /(?:api[_-]?key|api[_-]?secret|client[_-]?secret|license[_-]?key|password|authorization)\s*["']?\s*[:=]\s*["']([^"'\r\n]{24,})["']/gi,
+  );
+  for (const match of assignments) {
+    if (!/^(fixture-|test-|smoke-|Bearer \[REDACTED\])/.test(match[1])) {
+      console.error('Review credential-like assignment in ' + file);
+      failed = true;
+    }
+  }
   for (const pattern of [
     /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/,
     /gh[pousr]_[A-Za-z0-9]{30,}/,

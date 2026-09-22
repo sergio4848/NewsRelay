@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { type Snapshot, type Config, brand, templateSchema } from '../core/model';
+import { type Snapshot, type Config, brand, templateSchema, defaultConfig } from '../core/model';
 import { Graphic } from '../graphics/Graphic';
 import { type Strings, eventLabel } from './i18n';
+import { LicensePanel } from './LicensePanel';
+import { licenseDictionary } from './license-i18n';
 type Props = {
   s: Snapshot;
   t: Strings;
@@ -13,6 +15,7 @@ export function Settings({ s, t, save, run }: Props) {
   return (
     <div className="page narrow">
       <h1>{t.settings}</h1>
+      <LicensePanel s={s} />
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -97,6 +100,15 @@ export function Templates({ s, t, save }: Props) {
   return (
     <div className="page">
       <h1>{t.templates}</h1>
+      <button
+        onClick={() => {
+          const theme = defaultConfig().theme;
+          setTheme(theme);
+          save({ ...s.config, theme });
+        }}
+      >
+        {licenseDictionary(s.config.language).resetTheme}
+      </button>
       <div className="template-layout">
         <div>
           <div className="template-tabs">
@@ -125,38 +137,40 @@ export function Templates({ s, t, save }: Props) {
             save({ ...s.config, theme });
           }}
         >
-          {(['customer', 'logo', 'label'] as const).map((key) => (
-            <label key={key}>
-              {t[key]}
+          <fieldset disabled={!s.license.features.includes('branding.custom')}>
+            {(['customer', 'logo', 'label'] as const).map((key) => (
+              <label key={key}>
+                {t[key]}
+                <input
+                  value={theme[key]}
+                  maxLength={key === 'logo' ? 2048 : 40}
+                  onChange={(e) => setTheme({ ...theme, [key]: e.target.value })}
+                />
+              </label>
+            ))}
+            {(['primary', 'accent'] as const).map((key) => (
+              <label key={key}>
+                {t[key]}
+                <input
+                  type="color"
+                  value={theme[key]}
+                  onChange={(e) => setTheme({ ...theme, [key]: e.target.value })}
+                />
+              </label>
+            ))}
+            <label>
+              {t.scale}
               <input
-                value={theme[key]}
-                maxLength={key === 'logo' ? 2048 : 40}
-                onChange={(e) => setTheme({ ...theme, [key]: e.target.value })}
+                type="range"
+                min=".8"
+                max="1.2"
+                step=".05"
+                value={theme.scale}
+                onChange={(e) => setTheme({ ...theme, scale: Number(e.target.value) })}
               />
             </label>
-          ))}
-          {(['primary', 'accent'] as const).map((key) => (
-            <label key={key}>
-              {t[key]}
-              <input
-                type="color"
-                value={theme[key]}
-                onChange={(e) => setTheme({ ...theme, [key]: e.target.value })}
-              />
-            </label>
-          ))}
-          <label>
-            {t.scale}
-            <input
-              type="range"
-              min=".8"
-              max="1.2"
-              step=".05"
-              value={theme.scale}
-              onChange={(e) => setTheme({ ...theme, scale: Number(e.target.value) })}
-            />
-          </label>
-          <button>{t.save}</button>
+            <button>{t.save}</button>
+          </fieldset>
         </form>
       </div>
     </div>

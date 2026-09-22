@@ -9,7 +9,7 @@ async function visit(name) {
   const root = join('node_modules', name);
   const pkg = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
   const files = (await readdir(root)).filter((f) =>
-    /^(license|licence|copying|notice)(\.|$)/i.test(f),
+    /^(license|licence|copying|notice|third[-_]party[-_]notices)(\.|$)/i.test(f),
   );
   sections.push(name + ' ' + pkg.version + '\nLicense declared by package: ' + pkg.license + '\n');
   for (const file of files) sections.push(await readFile(join(root, file), 'utf8'));

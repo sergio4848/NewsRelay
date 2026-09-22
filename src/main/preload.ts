@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { type DesktopBridge, type Snapshot } from '../core/model';
 const bridge: DesktopBridge = {
+  license: (request) => ipcRenderer.invoke('license', request),
+  contact: (id) => ipcRenderer.invoke('contact', id),
   snapshot: () => ipcRenderer.invoke('snapshot'),
   command: (command) => ipcRenderer.invoke('command', command),
   saveConfig: (config) => ipcRenderer.invoke('saveConfig', config),

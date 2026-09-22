@@ -24,6 +24,7 @@ export class BrowserOutput implements BroadcastOutput {
     private projection: () => Projection,
     private webhook: (id: string, body: unknown, token: string) => void,
     private testItem: Item,
+    private testAllowed: () => boolean = () => true,
   ) {
     this.server = createServer((req, res) => {
       const run = async () => {
@@ -92,7 +93,7 @@ export class BrowserOutput implements BroadcastOutput {
           const client = String(req.headers['x-output-client'] || '').slice(0, 80);
           if (client && this.seen.size < 100) this.seen.set(client, Date.now());
           const state = this.projection(),
-            test = url.searchParams.get('test') === '1';
+            test = url.searchParams.get('test') === '1' && this.testAllowed();
           res.setHeader('Content-Type', 'application/json');
           res.end(
             JSON.stringify({ ...state, program: test ? this.testItem : state.program, test }),

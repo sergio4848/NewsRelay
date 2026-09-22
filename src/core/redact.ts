@@ -4,7 +4,7 @@ export function redact(value: string, secrets: string[] = []): string {
   return result
     .replace(/Bearer\s+[^\s"']+/gi, 'Bearer [REDACTED]')
     .replace(
-      /((?:api[_-]?key|token|password|secret|authorization)\s*["']?\s*[:=]\s*["']?)[^\s,"'}]+/gi,
+      /((?:license[_-]?key|api[_-]?key|token|password|secret|authorization)\s*["']?\s*[:=]\s*["']?)[^\s,"'}]+/gi,
       '$1[REDACTED]',
     )
     .replace(/https?:\/\/[^\s"']+/g, '[URL REDACTED]');

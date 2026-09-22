@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, clipboard, session } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, clipboard, session, shell } from 'electron';
 import { join } from 'node:path';
 import { mkdir, readFile, writeFile, stat } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
@@ -11,6 +11,10 @@ import { commandSchema, configSchema, brand } from '../core/model';
 import { migrateLegacy } from '../core/migration';
 import { DemoConnector, demoSource } from '../connectors/connectors';
 import { redact } from '../core/redact';
+import { LicenseService, licenseDiagnostics } from '../licensing/service';
+import { WorkerLicenseProvider } from '../licensing/worker-provider';
+import { contactIds, licenseRequestSchema } from '../licensing/model';
+let licensing: LicenseService;
 let window: BrowserWindow;
 let newsroom: Newsroom;
 let output: BrowserOutput;
@@ -28,8 +32,8 @@ async function openRoom(demo: boolean) {
   await mkdir(dir, { recursive: true });
   const repo = new Repository(join(dir, demo ? 'demo.sqlite' : 'newsroom.sqlite'));
   const vault = new Vault(repo);
-  newsroom = new Newsroom(repo, vault, demo);
-  if (demo && !newsroom.state.items.length) await newsroom.seed();
+  newsroom = new Newsroom(repo, vault, demo, licensing, __LICENSE_CONFIG__.contacts);
+  if (demo && !newsroom.state.items.length && licensing.allows('output.obs')) await newsroom.seed();
   const fixture = (await new DemoConnector(demoSource()).poll()).items[0];
   if (!fixture) throw new Error('Test fixture unavailable');
   output = new BrowserOutput(
@@ -37,7 +41,7 @@ async function openRoom(demo: boolean) {
     vault.token('output'),
     () => ({
       program: newsroom.state.program,
-      theme: newsroom.config.theme,
+      theme: newsroom.outputTheme(),
       language: newsroom.config.language,
       test: false,
     }),
@@ -47,6 +51,7 @@ async function openRoom(demo: boolean) {
       newsroom.accept(id, body);
     },
     fixture,
+    () => licensing.allows('output.obs'),
   );
   const port = await output.start(repo.get('output-port', 0));
   repo.set('output-port', port);
@@ -105,6 +110,7 @@ async function transfer(action: unknown) {
           ? { ...config, sources: config.sources.map((s) => ({ ...s, autoAir: false })) }
           : {
               version: brand.version,
+              licensing: licenseDiagnostics(licensing.snapshot()),
               database: newsroom.repo.health(),
               demo: newsroom.demo,
               output: { clients: output.clients(), active: !!newsroom.state.program },
@@ -120,6 +126,7 @@ async function transfer(action: unknown) {
       await writeFile(save.filePath, kind === 'diagnostics' ? redact(content) : content, 'utf8');
     }
   } else {
+    licensing.require('output.obs');
     const selection = await dialog.showOpenDialog(window, {
       properties: ['openFile'],
       filters: [{ name: 'JSON', extensions: ['json'] }],
@@ -141,11 +148,12 @@ async function transfer(action: unknown) {
         cancelId: 0,
       });
       if (confirm.response === 1) {
+        const validated = newsroom.validateConfig(
+          { ...config, sources: config.sources.map((s) => ({ ...s, autoAir: false })) },
+          true,
+        );
         newsroom.command({ type: 'clear' });
-        newsroom.save({
-          ...config,
-          sources: config.sources.map((s) => ({ ...s, autoAir: false })),
-        });
+        newsroom.save(validated);
       }
     }
   }
@@ -153,9 +161,24 @@ async function transfer(action: unknown) {
 }
 async function boot() {
   await app.whenReady();
+  if (__LICENSE_TEST_BUILD__ && app.isPackaged)
+    throw new Error('Test builds cannot run as packaged applications');
+  licensing = new LicenseService(
+    new WorkerLicenseProvider(join(__dirname, 'licensing-worker.cjs'), __LICENSE_CONFIG__),
+  );
+  await licensing.start();
   app.setName(brand.name);
   session.defaultSession.setPermissionRequestHandler((_w, _p, callback) => callback(false));
   await openRoom(smoke);
+  let lastLicenseStatus = '';
+  licensing.changed = () => {
+    const status = licensing.snapshot().status;
+    if (status !== lastLicenseStatus) {
+      newsroom.repo.audit('license-' + status);
+      lastLicenseStatus = status;
+    }
+    newsroom.licenseChanged();
+  };
   window = new BrowserWindow({
     width: 1540,
     height: 960,
@@ -176,9 +199,26 @@ async function boot() {
   window.webContents.on('will-navigate', (event) => event.preventDefault());
   window.once('ready-to-show', () => window.show());
   handle('snapshot', () => newsroom.snapshot());
+  handle('license', async (raw) => {
+    const request = licenseRequestSchema.parse(raw);
+    const state = await licensing.run(
+      request.action,
+      request.action === 'activate' ? request.key : undefined,
+    );
+    if (newsroom.demo && !newsroom.state.items.length && licensing.allows('output.obs'))
+      await newsroom.seed();
+    return state;
+  });
+  handle('contact', async (raw) => {
+    const id = z.enum(contactIds).parse(raw);
+    const target = __LICENSE_CONFIG__.contacts[id];
+    if (!target) throw new Error('Contact is not configured');
+    await shell.openExternal(id.endsWith('Email') ? 'mailto:' + target : target);
+  });
   handle('command', (c) => newsroom.command(commandSchema.parse(c)));
   handle('saveConfig', (c) => newsroom.save(configSchema.parse(c)));
   handle('credential', (id, value) => {
+    licensing.require('output.obs');
     const key = z.string().max(80).parse(id);
     if (!newsroom.config.sources.some((s) => s.id === key)) throw new Error('Unknown source');
     newsroom.vault.put('source:' + key, z.string().min(1).max(8192).parse(value));
@@ -186,9 +226,11 @@ async function boot() {
   handle('poll', () => newsroom.poll(true));
   handle('media', (id) => newsroom.media(z.string().max(100).parse(id)));
   handle('copyOutput', (test) => {
+    licensing.require('output.obs');
     clipboard.writeText(output.url(z.boolean().parse(test)));
   });
   handle('copyWebhook', (id) => {
+    licensing.require('connector.webhook');
     const key = z
       .string()
       .regex(/^[a-zA-Z0-9_-]{1,80}$/)
@@ -205,6 +247,8 @@ async function boot() {
   handle('demo', async (value) => {
     const demo = z.boolean().parse(value);
     if (demo === newsroom.demo) return newsroom.snapshot();
+    licensing.require('output.obs');
+    if (newsroom.state.program) throw new Error('Clear Program before changing operating mode');
     switching = true;
     try {
       clearInterval(timer);
@@ -227,6 +271,7 @@ app.on('window-all-closed', () => {
 });
 app.on('before-quit', () => {
   clearInterval(timer);
+  licensing?.close();
 });
 void boot().catch(() => {
   dialog.showErrorBox(
