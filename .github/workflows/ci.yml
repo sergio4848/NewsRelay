@@ -1,0 +1,31 @@
+name: Quality
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run security:scan
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test:run
+      - run: npm run build
+      - run: npm run test:smoke
+      - run: npm run dist:win
+      - name: Verify packaged production licensing
+        shell: pwsh
+        run: |
+          $env:NEWSRELAY_EXECUTABLE = (Resolve-Path 'release/win-unpacked/NewsRelay.exe').Path
+          node scripts/license-smoke.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NewsRelay-unsigned-windows
+          path: release/NewsRelay-Setup-*.exe

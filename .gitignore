@@ -3,6 +3,8 @@
 !.env.example
 node_modules/
 dist/
+dist-test/
+config/licensing.local.json
 release/
 coverage/
 *.log
